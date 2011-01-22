@@ -109,9 +109,9 @@ struct Params
 				case 0: tr.x() += gaussianRand(0, 0.1) * amount; break;
 				case 1: tr.y() += gaussianRand(0, 0.1) * amount; break;
 				case 2: tr.z() += gaussianRand(0, 0.1) * amount; break;
-				case 3: rot *= Eigen::Quaterniond(Eigen::AngleAxisd(gaussianRand(0, amount * M_PI / 8), Eigen::Vector3d::UnitX())); break;
-				case 4: rot *= Eigen::Quaterniond(Eigen::AngleAxisd(gaussianRand(0, amount * M_PI / 8), Eigen::Vector3d::UnitY())); break;
-				case 5: rot *= Eigen::Quaterniond(Eigen::AngleAxisd(gaussianRand(0, amount * M_PI / 8), Eigen::Vector3d::UnitZ())); break;
+				case 3: rot *= Eigen::Quaterniond(Eigen::AngleAxisd(gaussianRand(0, M_PI / 8) * amount, Eigen::Vector3d::UnitX())); break;
+				case 4: rot *= Eigen::Quaterniond(Eigen::AngleAxisd(gaussianRand(0, M_PI / 8) * amount, Eigen::Vector3d::UnitY())); break;
+				case 5: rot *= Eigen::Quaterniond(Eigen::AngleAxisd(gaussianRand(0, M_PI / 8) * amount, Eigen::Vector3d::UnitZ())); break;
 				default: break;
 			};
 		}
@@ -138,13 +138,22 @@ double computeError(const Params& p, const TrainingEntry& e)
 	const Eigen::Matrix3d pred_icp_rot_m = pred_icp.matrix().corner(Eigen::TopLeft,3,3);
 	const Eigen::Quaterniond pred_icp_rot = Eigen::Quaterniond(pred_icp_rot_m);
 	
+	// identity checked ok
+	//cerr << "mat:\n" << blk.matrix() * blk_i.matrix() << endl;
+	
+	//cout << "dist: " << (e.icp_tr - pred_icp.translation()).norm() << endl;
+	//cout << "ang dist: " << e.icp_rot.angularDistance(pred_icp_rot) << endl;
 	//cout << "tr pred icp:\n" << pred_icp.translation() << "\nicp:\n" << e.icp_tr << "\n" << endl;
 	//cout << "rot pred icp:\n" << pred_icp_rot << "\nicp:\n" << e.icp_rot << "\n" << endl;
 	// FIXME: tune coefficient for rot vs trans
-	return 
-		((e.icp_tr - pred_icp.translation()).squaredNorm()) +
-		e.icp_rot.angularDistance(pred_icp_rot)
-	;
+	
+	const double e_tr((e.icp_tr - pred_icp.translation()).norm());
+	const double e_rot(e.icp_rot.angularDistance(pred_icp_rot));
+	/*if (e_tr < 0)
+		abort();
+	if (e_rot < 0)
+		abort();*/
+	return e_tr + e_rot;
 }
 
 double computeError(const Params& p)
@@ -169,7 +178,7 @@ double evolveOneGen(Genome& genome, double annealing = 1.0, bool showBest = fals
 	int bestInd = 0;
 	for (size_t ind = 0; ind < genome.size(); ind++)
 	{
-		double error = computeError(genome[ind]);
+		const double error = computeError(genome[ind]);
 		if (error < bestError)
 		{
 			bestError = error;
@@ -225,9 +234,9 @@ int main(int argc, char** argv)
 	}
 	//trainingSet.dump();
 	
-	Genome genome(256);
+	Genome genome(1024);
 	//Genome genome(4);
-	int generationCount = 64;
+	int generationCount = 32;
 	for (int i = 0; i < generationCount; i++)
 	{
 		cout << i << " best has error " << evolveOneGen(genome, 2. * (double)(generationCount - i) / (double)(generationCount)) << endl;
