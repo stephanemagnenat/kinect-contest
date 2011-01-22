@@ -1,6 +1,7 @@
 #define EIGEN_DONT_VECTORIZE
 #define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT
 #include <Eigen/Eigen>
+#include <Eigen/LU>
 #include <iostream>
 #include <fstream>
 #include <cmath>
@@ -47,8 +48,6 @@ struct TrainingEntry
 	{
 		double t_x = 0, t_y = 0, t_z = 0, q_x = 0, q_y = 0, q_z = 0, q_w = 1;
 		is >> t_x;
-		//if (!is.good())
-		//	return;
 		is >> t_y;
 		is >> t_z;
 		odom_tr = Eigen::Vector3d(t_x, t_y, t_z);
@@ -56,10 +55,8 @@ struct TrainingEntry
 		is >> q_y;
 		is >> q_z;
 		is >> q_w;
-		//if (!is.good())
-		//	return;
 		odom_rot = Eigen::Quaterniond(q_w, q_x, q_y, q_z);
-		odom_tr = odom_rot*odom_tr;
+		//odom_tr = odom_rot*odom_tr;
 		is >> t_x;
 		is >> t_y;
 		is >> t_z;
@@ -68,13 +65,11 @@ struct TrainingEntry
 		is >> q_y;
 		is >> q_z;
 		is >> q_w;
-		//if (!is.good())
-		//	return;
 		icp_rot = Eigen::Quaterniond(q_w, q_x, q_y, q_z);
 		//cerr << icp_rot.x() << " " << icp_rot.y() << " " << icp_rot.z() << " " << icp_rot.w() <<endl;
 		//cerr << icp_tr.x() << " " << icp_tr.y() << " " << icp_tr.z() << endl;
 		// FIXME: bug in Eigen ?
-		icp_tr = icp_rot*icp_tr;
+		//icp_tr = icp_rot*icp_tr;
 		//cerr << icp_tr.x() << " " << icp_tr.y() << " " << icp_tr.z() << endl;
 	}
 
@@ -154,10 +149,9 @@ struct Params
 	
 	void dump(ostream& stream) const
 	{
-		Eigen::Vector3d tr2=rot.conjugate()*tr;
 		stream <<
-			tr2.x() << " " << tr2.y() << " " << tr2.z() << " " <<
-			rot.x() << " " << rot.y() << " " << rot.z() << " " << rot.w();
+			"translation: x=" << tr.x() << " y=" << tr.y() << " z=" << tr.z() << " " <<
+			"quaternion: x=" << rot.x() << " y=" << rot.y() << " z=" << rot.z() << " w=" << rot.w();
 	}
 };
 
@@ -165,13 +159,37 @@ typedef vector<Params> Genome;
 
 double computeError(const Params& p, const TrainingEntry& e)
 {
+	/*
+	// version with Eigen::Matrix4d
+	Eigen::Matrix4d blk(Eigen::Matrix4d::Identity());
+	blk.corner(Eigen::TopLeft,3,3) = p.rot.toRotationMatrix();
+	blk.corner(Eigen::TopRight,3,1) = p.tr;
+	
+	Eigen::Matrix4d odom(Eigen::Matrix4d::Identity());
+	odom.corner(Eigen::TopLeft,3,3) = e.odom_rot.toRotationMatrix();
+	odom.corner(Eigen::TopRight,3,1) = e.odom_tr;
+	
+	Eigen::Matrix4d blk_i(blk.inverse());
+	
+	//const Eigen::Matrix4d pred_icp = blk * odom * blk_i;
+	const Eigen::Matrix4d pred_icp = blk_i * odom * blk;
+	
+	const Eigen::Matrix3d pred_icp_rot_m = pred_icp.corner(Eigen::TopLeft,3,3);
+	const Eigen::Quaterniond pred_icp_rot = Eigen::Quaterniond(pred_icp_rot_m);
+	const Eigen::Vector3d pred_icp_tr = pred_icp.corner(Eigen::TopRight,3,1);
+	*/
+	
+	// version with Eigen::Transform3d
 	const Eigen::Transform3d blk = Eigen::Translation3d(p.tr) * p.rot;
 	const Eigen::Transform3d blk_i = Eigen::Transform3d(blk.inverse(Eigen::Isometry));
 	const Eigen::Transform3d odom = Eigen::Translation3d(e.odom_tr) * e.odom_rot;
-	const Eigen::Transform3d pred_icp = blk * odom * blk_i;
+	//const Eigen::Transform3d pred_icp = blk * odom * blk_i;
+	const Eigen::Transform3d pred_icp = blk_i * odom * blk;
 	
 	const Eigen::Matrix3d pred_icp_rot_m = pred_icp.matrix().corner(Eigen::TopLeft,3,3);
 	const Eigen::Quaterniond pred_icp_rot = Eigen::Quaterniond(pred_icp_rot_m);
+	const Eigen::Vector3d pred_icp_tr = pred_icp.translation();
+	
 	
 	// identity checked ok
 	//cerr << "mat:\n" << blk.matrix() * blk_i.matrix() << endl;
@@ -182,7 +200,7 @@ double computeError(const Params& p, const TrainingEntry& e)
 	//cout << "rot pred icp:\n" << pred_icp_rot << "\nicp:\n" << e.icp_rot << "\n" << endl;
 	// FIXME: tune coefficient for rot vs trans
 	
-	const double e_tr((e.icp_tr - pred_icp.translation()).norm());
+	const double e_tr((e.icp_tr - pred_icp_tr).norm());
 	const double e_rot(e.icp_rot.angularDistance(pred_icp_rot));
 	/*if (e_tr < 0)
 		abort();
