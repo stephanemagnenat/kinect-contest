@@ -1,10 +1,9 @@
-#define EIGEN_DONT_ALIGN
+#define EIGEN_DONT_VECTORIZE
+#define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT
 #include <Eigen/Eigen>
 #include <iostream>
 #include <fstream>
 #include <cmath>
-#define EIGEN_USE_NEW_STDVECTOR
-#include<Eigen/StdVector>
 #include <limits>
 
 using namespace std;
@@ -38,8 +37,6 @@ double gaussianRand(double mean, double sigm)
 
 struct TrainingEntry
 {
-	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
 	Eigen::Vector3d odom_tr;
 	Eigen::Quaterniond odom_rot;
 	Eigen::Vector3d icp_tr;
@@ -48,8 +45,10 @@ struct TrainingEntry
 	TrainingEntry(){}
 	TrainingEntry(std::istream& is)
 	{
-		double t_x, t_y, t_z, q_x, q_y, q_z, q_w;
+		double t_x = 0, t_y = 0, t_z = 0, q_x = 0, q_y = 0, q_z = 0, q_w = 1;
 		is >> t_x;
+		//if (!is.good())
+		//	return;
 		is >> t_y;
 		is >> t_z;
 		odom_tr = Eigen::Vector3d(t_x, t_y, t_z);
@@ -57,8 +56,10 @@ struct TrainingEntry
 		is >> q_y;
 		is >> q_z;
 		is >> q_w;
+		//if (!is.good())
+		//	return;
 		odom_rot = Eigen::Quaterniond(q_w, q_x, q_y, q_z);
-		odom_tr = odom_rot.conjugate()*odom_tr;
+		odom_tr = odom_rot*odom_tr;
 		is >> t_x;
 		is >> t_y;
 		is >> t_z;
@@ -67,8 +68,14 @@ struct TrainingEntry
 		is >> q_y;
 		is >> q_z;
 		is >> q_w;
+		//if (!is.good())
+		//	return;
 		icp_rot = Eigen::Quaterniond(q_w, q_x, q_y, q_z);
-		icp_tr = icp_rot.conjugate()*icp_tr;
+		//cerr << icp_rot.x() << " " << icp_rot.y() << " " << icp_rot.z() << " " << icp_rot.w() <<endl;
+		//cerr << icp_tr.x() << " " << icp_tr.y() << " " << icp_tr.z() << endl;
+		// FIXME: bug in Eigen ?
+		icp_tr = icp_rot.conjugate().inverse()*icp_tr;
+		//cerr << icp_tr.x() << " " << icp_tr.y() << " " << icp_tr.z() << endl;
 	}
 
 	void dump(ostream& stream) const
@@ -81,8 +88,7 @@ struct TrainingEntry
 	}
 };
 
-struct TrainingSet: public std::vector<TrainingEntry,
-Eigen::aligned_allocator<TrainingEntry> >
+struct TrainingSet: public std::vector<TrainingEntry>
 {
 	void dump()
 	{
@@ -99,8 +105,6 @@ TrainingSet trainingSet;
 
 struct Params
 {
-	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	
 	Eigen::Vector3d tr;
 	Eigen::Quaterniond rot;
 	
@@ -136,7 +140,7 @@ struct Params
 	}
 };
 
-typedef vector<Params,Eigen::aligned_allocator<Params> > Genome;
+typedef vector<Params> Genome;
 
 double computeError(const Params& p, const TrainingEntry& e)
 {
@@ -240,7 +244,10 @@ int main(int argc, char** argv)
 	{
 		TrainingEntry e(ifs);
 		if (ifs.good())
+		{
 			trainingSet.push_back(e);
+//			e.dump(cerr); cerr << endl;
+		}
 	}
 	//trainingSet.dump();
 	
