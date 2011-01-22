@@ -95,14 +95,18 @@ int main(int argc, char** argv)
 		t.waitForTransform(kinectFrame, curTime, kinectFrame, lastTime, worldFrame, ros::Duration(3));
 		t.lookupTransform(baseLinkFrame, curTime, baseLinkFrame, lastTime, odomFrame, tr_o);
 		//ROS_INFO_STREAM("odom to baselink: trans: " << tr_o.getOrigin() << ", rot: " << tr_o.getRotation());
-		const double alpha_o = tr_o.getOrigin().x();
-		const double beta_o = tr_o.getOrigin().y();
+		const double alpha_o_tf = tr_o.getOrigin().x();
+		const double beta_o_tf = tr_o.getOrigin().y();
 		const double theta_o = 2*atan2(tr_o.getRotation().z(), tr_o.getRotation().w());
+		const double alpha_o = cos(theta_o)*alpha_o_tf + sin(theta_o)*beta_o_tf;
+		const double beta_o = -sin(theta_o)*alpha_o_tf + cos(theta_o)*beta_o_tf;
 		t.lookupTransform(kinectFrame, curTime, kinectFrame, lastTime, worldFrame, tr_i);
 		//ROS_INFO_STREAM("world to kinect: trans: " << tr_i.getOrigin() << ", rot: " << tr_i.getRotation());
-		const double alpha_i = tr_i.getOrigin().z();
-		const double beta_i = -tr_i.getOrigin().x();
+		const double alpha_i_tf = tr_i.getOrigin().z();
+		const double beta_i_tf = -tr_i.getOrigin().x();
 		const double theta_i = 2*atan2(-tr_i.getRotation().y(), tr_i.getRotation().w());
+		const double alpha_i = cos(theta_i)*alpha_i_tf + sin(theta_i)*beta_i_tf;
+		const double beta_i = -sin(theta_i)*alpha_i_tf + cos(theta_i)*beta_i_tf;
 		lastTime = curTime;
 		
 		ROS_WARN_STREAM("Input odom: ("<<alpha_o<<", "<<beta_o<<", "<<theta_o<<"), icp: ("\
@@ -181,15 +185,22 @@ int main(int argc, char** argv)
 		}
 		
 		// compute transform
-		const tf::Vector3 trans_test = tf::Vector3(a_test, b_test, 0);
+		const tf::Quaternion quat_trans = tf::Quaternion(a_test, b_test, 0, 1);
 		const tf::Quaternion quat_test = tf::Quaternion(0, 0, sin(theta_test/2), cos(theta_test / 2));
 		const tf::Quaternion quat_axes = tf::Quaternion(-0.5, 0.5, -0.5, 0.5);
-		ROS_INFO_STREAM("Estimated transform: trans: " <<  a_test << ", " <<
-				b_test << ", rot: " << 2*atan2(quat_test.z(), quat_test.w()));
+		const tf::Quaternion quat_rot = quat_test*quat_axes;
+		
+		tf::Quaternion quat_tmp = quat_rot.inverse()*quat_trans*quat_rot;
+
+		const tf::Vector3 vect_trans = tf::Vector3(quat_tmp.x(), quat_tmp.y(), 0);
+
 
 		tf::Transform transform;
-		transform.setRotation(quat_test*quat_axes);
-		transform.setOrigin(trans_test);
+		transform.setRotation(quat_rot);
+		transform.setOrigin(vect_trans);
+
+		ROS_INFO_STREAM("Estimated transform: trans: " <<  a_test << ", " <<
+				b_test << ", rot: " << 2*atan2(quat_test.z(), quat_test.w()));
 	
 		static tf::TransformBroadcaster br;
 br.sendTransform(tf::StampedTransform(transform, ros::Time::now(),
