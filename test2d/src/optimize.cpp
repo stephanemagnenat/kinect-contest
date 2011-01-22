@@ -74,7 +74,7 @@ struct TrainingEntry
 		//cerr << icp_rot.x() << " " << icp_rot.y() << " " << icp_rot.z() << " " << icp_rot.w() <<endl;
 		//cerr << icp_tr.x() << " " << icp_tr.y() << " " << icp_tr.z() << endl;
 		// FIXME: bug in Eigen ?
-		icp_tr = icp_rot.conjugate().inverse()*icp_tr;
+		icp_tr = icp_rot*icp_tr;
 		//cerr << icp_tr.x() << " " << icp_tr.y() << " " << icp_tr.z() << endl;
 	}
 
@@ -108,7 +108,20 @@ struct Params
 	Eigen::Vector3d tr;
 	Eigen::Quaterniond rot;
 	
-	Params():tr(0,0,0),rot(1,0,0,0) {}
+	//Params():tr(0,0,0),rot(1,0,0,0) {}
+	Params():
+		tr(
+			gaussianRand(0, 0.5),
+			gaussianRand(0, 0.5),
+			gaussianRand(0, 0.5)
+		),
+		rot(
+			Eigen::Quaterniond(1,0,0,0) *
+			Eigen::Quaterniond(Eigen::AngleAxisd(uniformRand() * M_PI*2, Eigen::Vector3d::UnitX())) *
+			Eigen::Quaterniond(Eigen::AngleAxisd(uniformRand() * M_PI*2, Eigen::Vector3d::UnitY())) *
+			Eigen::Quaterniond(Eigen::AngleAxisd(uniformRand() * M_PI*2, Eigen::Vector3d::UnitZ()))
+		)
+		{}
 	
 	// add random noise
 	const Params& mutate(double amount = 1.0)
@@ -128,6 +141,14 @@ struct Params
 				default: break;
 			};
 		}
+		/*
+		tr.x() += gaussianRand(0, 0.1) * amount;
+		tr.y() += gaussianRand(0, 0.1) * amount;
+		tr.z() += gaussianRand(0, 0.1) * amount;
+		rot *= Eigen::Quaterniond(Eigen::AngleAxisd(gaussianRand(0, M_PI / 8) * amount, Eigen::Vector3d::UnitX()));
+		rot *= Eigen::Quaterniond(Eigen::AngleAxisd(gaussianRand(0, M_PI / 8) * amount, Eigen::Vector3d::UnitY()));
+		rot *= Eigen::Quaterniond(Eigen::AngleAxisd(gaussianRand(0, M_PI / 8) * amount, Eigen::Vector3d::UnitZ()));
+		*/
 		return *this;
 	}
 	
@@ -167,6 +188,7 @@ double computeError(const Params& p, const TrainingEntry& e)
 		abort();
 	if (e_rot < 0)
 		abort();*/
+	//cerr << e_tr << " " << e_rot << endl;
 	return e_tr + e_rot;
 }
 
@@ -249,11 +271,12 @@ int main(int argc, char** argv)
 //			e.dump(cerr); cerr << endl;
 		}
 	}
+	cout << "Loaded " << trainingSet.size() << " training entries" << endl;
 	//trainingSet.dump();
 	
 	Genome genome(1024);
 	//Genome genome(4);
-	int generationCount = 32;
+	int generationCount = 64;
 	for (int i = 0; i < generationCount; i++)
 	{
 		cout << i << " best has error " << evolveOneGen(genome, 2. * (double)(generationCount - i) / (double)(generationCount)) << endl;

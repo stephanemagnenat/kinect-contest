@@ -65,7 +65,7 @@ int main(int argc, char** argv)
 	}
 	ROS_INFO_STREAM("got first world to kinect");
 	
-	sleep(10);
+	sleep(3);
 	
 	ros::Rate rate(0.5);
 	ofstream ofs("output.txt");
@@ -79,16 +79,16 @@ int main(int argc, char** argv)
 		ros::Time curTime(ros::Time::now());
 		ros::Time lastTime = curTime - ros::Duration(2);
 		//ROS_INFO_STREAM("curTime: " << curTime << ", lastTime: " << lastTime);
-		t.waitForTransform(baseLinkFrame, curTime, baseLinkFrame, lastTime, odomFrame, ros::Duration(3));
-		t.waitForTransform(kinectFrame, curTime, kinectFrame, lastTime, worldFrame, ros::Duration(3));
+		if (!t.waitForTransform(baseLinkFrame, curTime, baseLinkFrame, lastTime, odomFrame, ros::Duration(3)))
+			break;
+		if (!t.waitForTransform(kinectFrame, curTime, kinectFrame, lastTime, worldFrame, ros::Duration(3)))
+			break;
 		t.lookupTransform(baseLinkFrame, curTime, baseLinkFrame, lastTime, odomFrame, tr_o);
 		ofs << tr_o.getOrigin() << " " << tr_o.getRotation() << " ";
 		t.lookupTransform(kinectFrame, curTime, kinectFrame, lastTime, worldFrame, tr_i);
 		ofs << tr_i.getOrigin() << " " << tr_i.getRotation() << endl;
 		
 		cout << "ping" << endl;
-		
-		lastTime = curTime;
 	}
 	
 	return 0;
