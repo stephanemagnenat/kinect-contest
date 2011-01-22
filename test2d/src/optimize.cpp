@@ -1,8 +1,10 @@
+#define EIGEN_DONT_ALIGN
 #include <Eigen/Eigen>
 #include <iostream>
 #include <fstream>
 #include <cmath>
-#include <vector>
+#define EIGEN_USE_NEW_STDVECTOR
+#include<Eigen/StdVector>
 #include <limits>
 
 using namespace std;
@@ -36,6 +38,8 @@ double gaussianRand(double mean, double sigm)
 
 struct TrainingEntry
 {
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
 	Eigen::Vector3d odom_tr;
 	Eigen::Quaterniond odom_rot;
 	Eigen::Vector3d icp_tr;
@@ -54,6 +58,7 @@ struct TrainingEntry
 		is >> q_z;
 		is >> q_w;
 		odom_rot = Eigen::Quaterniond(q_w, q_x, q_y, q_z);
+		odom_tr = odom_rot.conjugate()*odom_tr;
 		is >> t_x;
 		is >> t_y;
 		is >> t_z;
@@ -63,6 +68,7 @@ struct TrainingEntry
 		is >> q_z;
 		is >> q_w;
 		icp_rot = Eigen::Quaterniond(q_w, q_x, q_y, q_z);
+		icp_tr = icp_rot.conjugate()*icp_tr;
 	}
 
 	void dump(ostream& stream) const
@@ -75,7 +81,8 @@ struct TrainingEntry
 	}
 };
 
-struct TrainingSet: public std::vector<TrainingEntry>
+struct TrainingSet: public std::vector<TrainingEntry,
+Eigen::aligned_allocator<TrainingEntry> >
 {
 	void dump()
 	{
@@ -92,6 +99,8 @@ TrainingSet trainingSet;
 
 struct Params
 {
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+	
 	Eigen::Vector3d tr;
 	Eigen::Quaterniond rot;
 	
@@ -120,13 +129,14 @@ struct Params
 	
 	void dump(ostream& stream) const
 	{
+		Eigen::Vector3d tr2=rot.conjugate()*tr;
 		stream <<
-			tr.x() << " " << tr.y() << " " << tr.z() << " " <<
+			tr2.x() << " " << tr2.y() << " " << tr2.z() << " " <<
 			rot.x() << " " << rot.y() << " " << rot.z() << " " << rot.w();
 	}
 };
 
-typedef vector<Params> Genome;
+typedef vector<Params,Eigen::aligned_allocator<Params> > Genome;
 
 double computeError(const Params& p, const TrainingEntry& e)
 {
