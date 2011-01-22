@@ -9,7 +9,7 @@ using namespace std;
 
 const string baseLinkFrame = "/base_link";
 const string odomFrame = "/odom";
-const string kinectFrame = "/openni_depth";
+const string kinectFrame = "/openni_rgb_optical_frame";
 const string myKinectFrame = "/kinect";
 const string worldFrame = "/world";
 //const double limit_low = 1e-3;
