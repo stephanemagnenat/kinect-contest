@@ -13,7 +13,7 @@ const string kinectFrame = "/openni_rgb_optical_frame";
 const string myKinectFrame = "/kinect";
 const string worldFrame = "/world";
 
-// see http://www.ros.org/wiki/Clock for how to manage timing 
+// see http://www.ros.org/wiki/Clock for how to manage timing
 /*
 	Execute the following to use this program:
 		roscore
@@ -39,10 +39,10 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "logger");
 
 	ros::NodeHandle node;
-	
+
 	tf::TransformListener t(ros::Duration(20));
 	tf::StampedTransform tr_o, tr_i;
-	
+
 	ROS_INFO_STREAM("waiting for initial transforms");
 	while (node.ok())
 	{
@@ -64,9 +64,9 @@ int main(int argc, char** argv)
 		//ros::Duration(0.1).sleep();
 	}
 	ROS_INFO_STREAM("got first world to kinect");
-	
+
 	sleep(3);
-	
+
 	ros::Rate rate(0.5);
 	ofstream ofs("output.txt");
 	while (node.ok())
@@ -74,7 +74,7 @@ int main(int argc, char** argv)
 		// sleep
 		ros::spinOnce();
 		rate.sleep();
-		
+
 		// get parameters from transforms
 		ros::Time curTime(ros::Time::now());
 		ros::Time lastTime = curTime - ros::Duration(2);
@@ -87,9 +87,9 @@ int main(int argc, char** argv)
 		ofs << tr_o.getOrigin() << " " << tr_o.getRotation() << " ";
 		t.lookupTransform(kinectFrame, curTime, kinectFrame, lastTime, worldFrame, tr_i);
 		ofs << tr_i.getOrigin() << " " << tr_i.getRotation() << endl;
-		
+
 		cout << "ping" << endl;
 	}
-	
+
 	return 0;
 }

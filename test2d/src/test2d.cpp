@@ -21,7 +21,7 @@ const double min_V_rot = 0.1;
 const double max_R_trans = 5.0;
 const double min_nu = 0.05;
 
-// see http://www.ros.org/wiki/Clock for how to manage timing 
+// see http://www.ros.org/wiki/Clock for how to manage timing
 /*
 	Execute the following to use this program:
 		roscore
@@ -47,16 +47,16 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "test2d");
 
 	ros::NodeHandle node;
-	
+
 	tf::TransformListener t(ros::Duration(20));
 	tf::StampedTransform tr_o, tr_i;
-	
+
 	double a_test(0);
 	double b_test(0);
 	double theta_test(0);
 	double nu_theta(1);
 	double nu_trans(1);
-	
+
 	ROS_INFO_STREAM("waiting for initial transforms");
 	while (node.ok())
 	{
@@ -78,15 +78,15 @@ int main(int argc, char** argv)
 		//ros::Duration(0.1).sleep();
 	}
 	ROS_INFO_STREAM("got first world to kinect");
-	
+
 	sleep(10);
-	
+
 	ros::Rate rate(0.5);
 	while (node.ok())
 	{
 		// sleep
 		rate.sleep();
-		
+
 		// get parameters from transforms
 		ros::Time curTime(ros::Time::now());
 		ros::Time lastTime = curTime - ros::Duration(10);
@@ -108,7 +108,7 @@ int main(int argc, char** argv)
 		const double alpha_i = cos(theta_i)*alpha_i_tf + sin(theta_i)*beta_i_tf;
 		const double beta_i = -sin(theta_i)*alpha_i_tf + cos(theta_i)*beta_i_tf;
 		lastTime = curTime;
-		
+
 		ROS_WARN_STREAM("Input odom: ("<<alpha_o<<", "<<beta_o<<", "<<theta_o<<"), icp: ("\
 				<<alpha_i<<", "<<beta_i<<", "<<theta_i<<")");
 		if (abs(theta_i-theta_o) > max_diff_angle)
@@ -151,14 +151,14 @@ int main(int argc, char** argv)
 			xi = atan2(C_1 + a_test, C_2 + b_test);
 		else
 			xi = atan2(kC_1, kC_2);
-		
-		// compute new values 
+
+		// compute new values
 		//double tmp_theta = M_PI/2 - phi  - xi;
 		double tmp_theta = xi - phi;
 		double tmp_a = R * sin(tmp_theta+phi) - C_1;
 		double tmp_b = R * cos(tmp_theta+phi) - C_2;
 		//tmp_theta = (tmp_theta<-M_PI)?tmp_theta+2*M_PI:((tmp_theta>M_PI)?tmp_theta-2*M_PI:tmp_theta);
-		
+
 		const double V = sqrt((C_1+a_test)*(C_1+a_test)+(C_2+b_test)*(C_2+b_test));
 		/*const double err = sqrt((a_test-tmp_a)*(a_test-tmp_a)+(b_test-tmp_b)*(b_test-tmp_b));
 		const double err_pred = sqrt(R*R + V*V -2*R*V*cos(tmp_theta+phi-xi));
@@ -167,7 +167,7 @@ int main(int argc, char** argv)
 		ROS_WARN_STREAM("Error="<<err<<" Computed="<<err_pred);
 		ROS_WARN_STREAM("chosen: ("<<tmp_a<<", "<<tmp_b<<"); rejected: ("
 				<<R*sin(tmp_theta+phi+M_PI)-C_1<<", "<<R*cos(tmp_theta+phi+M_PI)-C_2<<")");
-		
+
 		ROS_WARN_STREAM("R: "<<R<<", V: "<<V<<", C_1: "<<C_1<<", C_2: "<<C_2\
 				<<", phi: "<<phi<<", xi: "<<xi<<", theta: "<<tmp_theta);
 		}*/
@@ -183,13 +183,13 @@ int main(int argc, char** argv)
 			b_test = (1-nu_trans)*b_test + nu_trans*tmp_b;
 			nu_trans = max(min_nu, 1/(1+1/nu_trans));
 		}
-		
+
 		// compute transform
 		const tf::Quaternion quat_trans = tf::Quaternion(a_test, b_test, 0, 1);
 		const tf::Quaternion quat_test = tf::Quaternion(0, 0, sin(theta_test/2), cos(theta_test / 2));
 		const tf::Quaternion quat_axes = tf::Quaternion(-0.5, 0.5, -0.5, 0.5);
 		const tf::Quaternion quat_rot = quat_test*quat_axes;
-		
+
 		tf::Quaternion quat_tmp = quat_rot.inverse()*quat_trans*quat_rot;
 
 		const tf::Vector3 vect_trans = tf::Vector3(quat_tmp.x(), quat_tmp.y(), 0);
@@ -201,11 +201,11 @@ int main(int argc, char** argv)
 
 		ROS_INFO_STREAM("Estimated transform: trans: " <<  a_test << ", " <<
 				b_test << ", rot: " << 2*atan2(quat_test.z(), quat_test.w()));
-	
+
 		static tf::TransformBroadcaster br;
 br.sendTransform(tf::StampedTransform(transform, ros::Time::now(),
 baseLinkFrame, myKinectFrame));
 	}
-	
+
 	return 0;
 }

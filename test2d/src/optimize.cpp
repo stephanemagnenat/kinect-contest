@@ -75,7 +75,7 @@ struct TrainingEntry
 
 	void dump(ostream& stream) const
 	{
-		stream << 
+		stream <<
 			odom_tr.x() << " " << odom_tr.y() << " " << odom_tr.z() << " " <<
 			odom_rot.x() << " " << odom_rot.y() << " " << odom_rot.z() << " " << odom_rot.w() << " " <<
 			icp_tr.x() << " " << icp_tr.y() << " " << icp_tr.z() << " " <<
@@ -102,7 +102,7 @@ struct Params
 {
 	Eigen::Vector3d tr;
 	Eigen::Quaterniond rot;
-	
+
 	//Params():tr(0,0,0),rot(1,0,0,0) {}
 	Params():
 		tr(
@@ -117,7 +117,7 @@ struct Params
 			Eigen::Quaterniond(Eigen::AngleAxisd(uniformRand() * M_PI*2, Eigen::Vector3d::UnitZ()))
 		)
 		{}
-	
+
 	// add random noise
 	const Params& mutate(double amount = 1.0)
 	{
@@ -146,7 +146,7 @@ struct Params
 		*/
 		return *this;
 	}
-	
+
 	void dump(ostream& stream) const
 	{
 		stream <<
@@ -164,42 +164,42 @@ double computeError(const Params& p, const TrainingEntry& e)
 	Eigen::Matrix4d blk(Eigen::Matrix4d::Identity());
 	blk.corner(Eigen::TopLeft,3,3) = p.rot.toRotationMatrix();
 	blk.corner(Eigen::TopRight,3,1) = p.tr;
-	
+
 	Eigen::Matrix4d odom(Eigen::Matrix4d::Identity());
 	odom.corner(Eigen::TopLeft,3,3) = e.odom_rot.toRotationMatrix();
 	odom.corner(Eigen::TopRight,3,1) = e.odom_tr;
-	
+
 	Eigen::Matrix4d blk_i(blk.inverse());
-	
+
 	//const Eigen::Matrix4d pred_icp = blk * odom * blk_i;
 	const Eigen::Matrix4d pred_icp = blk_i * odom * blk;
-	
+
 	const Eigen::Matrix3d pred_icp_rot_m = pred_icp.corner(Eigen::TopLeft,3,3);
 	const Eigen::Quaterniond pred_icp_rot = Eigen::Quaterniond(pred_icp_rot_m);
 	const Eigen::Vector3d pred_icp_tr = pred_icp.corner(Eigen::TopRight,3,1);
 	*/
-	
+
 	// version with Eigen::Transform3d
 	const Eigen::Transform3d blk = Eigen::Translation3d(p.tr) * p.rot;
 	const Eigen::Transform3d blk_i = Eigen::Transform3d(blk.inverse(Eigen::Isometry));
 	const Eigen::Transform3d odom = Eigen::Translation3d(e.odom_tr) * e.odom_rot;
 	//const Eigen::Transform3d pred_icp = blk * odom * blk_i;
 	const Eigen::Transform3d pred_icp = blk_i * odom * blk;
-	
+
 	const Eigen::Matrix3d pred_icp_rot_m = pred_icp.matrix().corner(Eigen::TopLeft,3,3);
 	const Eigen::Quaterniond pred_icp_rot = Eigen::Quaterniond(pred_icp_rot_m);
 	const Eigen::Vector3d pred_icp_tr = pred_icp.translation();
-	
-	
+
+
 	// identity checked ok
 	//cerr << "mat:\n" << blk.matrix() * blk_i.matrix() << endl;
-	
+
 	//cout << "dist: " << (e.icp_tr - pred_icp.translation()).norm() << endl;
 	//cout << "ang dist: " << e.icp_rot.angularDistance(pred_icp_rot) << endl;
 	//cout << "tr pred icp:\n" << pred_icp.translation() << "\nicp:\n" << e.icp_tr << "\n" << endl;
 	//cout << "rot pred icp:\n" << pred_icp_rot << "\nicp:\n" << e.icp_rot << "\n" << endl;
 	// FIXME: tune coefficient for rot vs trans
-	
+
 	const double e_tr((e.icp_tr - pred_icp_tr).norm());
 	const double e_rot(e.icp_rot.angularDistance(pred_icp_rot));
 	/*if (e_tr < 0)
@@ -272,13 +272,13 @@ double evolveOneGen(Genome& genome, double annealing = 1.0, bool showBest = fals
 int main(int argc, char** argv)
 {
 	srand(time(0));
-	
+
 	if (argc != 2)
 	{
 		cerr << "Usage " << argv[0] << " LOG_FILE_NAME" << endl;
 		return 1;
 	}
-	
+
 	ifstream ifs(argv[1]);
 	while (ifs.good())
 	{
@@ -291,7 +291,7 @@ int main(int argc, char** argv)
 	}
 	cout << "Loaded " << trainingSet.size() << " training entries" << endl;
 	//trainingSet.dump();
-	
+
 	Genome genome(1024);
 	//Genome genome(4);
 	int generationCount = 64;
@@ -305,6 +305,6 @@ int main(int argc, char** argv)
 		cout << 50 + i << " best has error " << evolve_one_gen(genome, 1.) << endl;
 	}*/
 	evolveOneGen(genome, 1.0, true);
-	
+
 	return 0;
 }
