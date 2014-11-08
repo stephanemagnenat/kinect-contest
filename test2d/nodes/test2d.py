@@ -17,16 +17,16 @@ limit_high = 1e4
 
 if __name__ == '__main__':
 	rospy.init_node('test2d')
-	
+
 	t = tf.TransformListener()
-	
+
 	(a_test, b_test, theta_test) = (0,0,0)
-	
+
 	rate = rospy.Rate(0.5)
 	while not rospy.is_shutdown():
 		# sleep
 		rate.sleep()
-		
+
 		# get parameters from transforms
 		curTime = t.getLatestCommonTime(odomFrame, baseLinkFrame)
 		lastTime = curTime - rospy.Duration(2)
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 		beta_i = trans_i[1]
 		theta_i = atan2(quat_i[2], quat_i[3])
 		lastTime = curTime
-		
+
 		# compute correspondances, check values to prevent numerical instabilities
 		r_1 = alpha_o * cos(theta_o) + alpha_o + beta_o * sin(theta_o)
 		if abs(r_1) < limit_low: continue
@@ -58,17 +58,17 @@ if __name__ == '__main__':
 		if abs(C_1) < limit_low: continue
 		C_2 = (alpha_i + alpha_i * cos(theta_o) + beta_i * sin(theta_o)) / R_denom
 		xi = atan2(C_2 + b_test, C_1 + a_test)
-		
+
 		# compute new values
 		theta_test = pi - phi - xi
 		a_test = R * sin(theta_test + phi) - C_1
 		b_test = R * cos(theta_test + phi) - C_2
-		
+
 		if abs(a_test) < limit_low:
 			print 'warning, small a_test', a_test
 		if abs(b_test) < limit_high:
 			print 'warning, small b_test', b_test
-		
+
 		# compute transform
 		trans_test = (a_test, b_test, 0)
 		quat_test = (0, 0, sin(theta_test / 2), cos(theta_test / 2))

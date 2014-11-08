@@ -8,10 +8,10 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/test2d</url>
-  <depend package="rospy"/> 
+  <depend package="rospy"/>
   <depend package="roscpp"/>
-  <depend package="tf"/> 
-  <depend package="eigen"/> 
+  <depend package="tf"/>
+  <depend package="eigen"/>
 
 </package>
 
